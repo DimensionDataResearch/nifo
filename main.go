@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 )
 
+var logger = log.New(os.Stdout, "", 0)
+
 func main() {
-	log.SetOutput(os.Stdout)
+	log.SetPrefix("[VERBOSE] ")
 	log.SetFlags(0) // No date / time prefix.
 
 	options := parseOptions()
@@ -21,6 +24,12 @@ func main() {
 		fmt.Printf("NukeItFromOrbit %s\n", ProductVersion)
 
 		return
+	}
+
+	if options.Verbose {
+		log.SetOutput(os.Stdout)
+	} else {
+		log.SetOutput(ioutil.Discard)
 	}
 
 	apiClient, err := options.CreateClient()

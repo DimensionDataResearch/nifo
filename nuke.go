@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 
 // Destroy the target network domain.
 func nuke(apiClient *compute.Client, networkDomainID string) error {
-	log.Printf("Destroying network domain '%s'...", networkDomainID)
+	logger.Printf("Destroying network domain '%s'...", networkDomainID)
 
 	err := nukeNATRules(apiClient, networkDomainID)
 	if err != nil {
@@ -63,7 +62,7 @@ func nukeNATRules(apiClient *compute.Client, networkDomainID string) error {
 	}
 
 	for _, natRule := range natRules {
-		log.Printf("Deleting NAT rule '%s' (%s -> %s)...",
+		logger.Printf("Deleting NAT rule '%s' (%s -> %s)...",
 			natRule.ID,
 			natRule.ExternalIPAddress,
 			natRule.InternalIPAddress,
@@ -74,7 +73,7 @@ func nukeNATRules(apiClient *compute.Client, networkDomainID string) error {
 			return err
 		}
 
-		log.Printf("Deleted NAT rule '%s' (%s -> %s).",
+		logger.Printf("Deleted NAT rule '%s' (%s -> %s).",
 			natRule.ID,
 			natRule.ExternalIPAddress,
 			natRule.InternalIPAddress,
@@ -104,7 +103,7 @@ func nukePublicIPBlocks(apiClient *compute.Client, networkDomainID string) error
 	}
 
 	for _, publicIPBlock := range publicIPBlocks {
-		log.Printf("Deleting public IP block '%s'...",
+		logger.Printf("Deleting public IP block '%s'...",
 			publicIPBlock.ID,
 		)
 
@@ -113,7 +112,7 @@ func nukePublicIPBlocks(apiClient *compute.Client, networkDomainID string) error
 			return err
 		}
 
-		log.Printf("Deleted public IP block '%s'...",
+		logger.Printf("Deleted public IP block '%s'...",
 			publicIPBlock.ID,
 		)
 	}
@@ -153,7 +152,7 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 			if server.Started {
 				err = hardStopServer(apiClient, server.ID)
 				if err != nil {
-					log.Println(err)
+					logger.Println(err)
 					failed = true
 
 					return
@@ -161,7 +160,7 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 			}
 
 			asyncLock.Lock()
-			log.Printf("Destroying server '%s' ('%s')...",
+			logger.Printf("Destroying server '%s' ('%s')...",
 				server.Name,
 				server.ID,
 			)
@@ -169,7 +168,7 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 			err = apiClient.DeleteServer(server.ID)
 			asyncLock.Unlock()
 			if err != nil {
-				log.Println(err)
+				logger.Println(err)
 				failed = true
 
 				return
@@ -177,13 +176,13 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 
 			err = apiClient.WaitForDelete(compute.ResourceTypeServer, server.ID, 5*time.Minute)
 			if err != nil {
-				log.Println(err)
+				logger.Println(err)
 				failed = true
 
 				return
 			}
 
-			log.Printf("Destroyed server '%s' ('%s').",
+			logger.Printf("Destroyed server '%s' ('%s').",
 				server.Name,
 				server.ID,
 			)
@@ -200,7 +199,7 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 }
 
 func hardStopServer(apiClient *compute.Client, serverID string) error {
-	log.Printf("Stopping server '%s'...", serverID)
+	logger.Printf("Stopping server '%s'...", serverID)
 
 	err := apiClient.PowerOffServer(serverID)
 	if err != nil {
@@ -212,7 +211,7 @@ func hardStopServer(apiClient *compute.Client, serverID string) error {
 		return err
 	}
 
-	log.Printf("Stopped server '%s'...", serverID)
+	logger.Printf("Stopped server '%s'...", serverID)
 
 	return nil
 }
@@ -237,7 +236,7 @@ func nukeVLANs(apiClient *compute.Client, networkDomainID string) error {
 	}
 
 	for _, vlan := range vlans {
-		log.Printf("Deleting VLAN '%s'...",
+		logger.Printf("Deleting VLAN '%s'...",
 			vlan.ID,
 		)
 
@@ -251,7 +250,7 @@ func nukeVLANs(apiClient *compute.Client, networkDomainID string) error {
 			return err
 		}
 
-		log.Printf("Deleted VLAN '%s'...",
+		logger.Printf("Deleted VLAN '%s'...",
 			vlan.ID,
 		)
 	}
@@ -260,14 +259,14 @@ func nukeVLANs(apiClient *compute.Client, networkDomainID string) error {
 }
 
 func nukeNetworkDomain(apiClient *compute.Client, networkDomainID string) error {
-	log.Printf("Deleting network domain '%s'...", networkDomainID)
+	logger.Printf("Deleting network domain '%s'...", networkDomainID)
 
 	err := apiClient.DeleteNetworkDomain(networkDomainID)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Deleted network domain '%s'.", networkDomainID)
+	logger.Printf("Deleted network domain '%s'.", networkDomainID)
 
 	return nil
 }
