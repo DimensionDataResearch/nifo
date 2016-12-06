@@ -1,8 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
-
+	"sync"
 	"time"
 
 	"github.com/DimensionDataResearch/go-dd-cloud-compute/compute"
@@ -10,6 +11,8 @@ import (
 
 // Destroy the target network domain.
 func nuke(apiClient *compute.Client, networkDomainID string) error {
+	log.Printf("Destroying network domain '%s'...", networkDomainID)
+
 	err := nukeNATRules(apiClient, networkDomainID)
 	if err != nil {
 		return err
@@ -26,6 +29,11 @@ func nuke(apiClient *compute.Client, networkDomainID string) error {
 	}
 
 	// TODO: Nuke VIP nodes, VIP pools, and virtual listeners.
+
+	err = nukeNetworkDomain(apiClient, networkDomainID)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -121,35 +129,60 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 		servers = append(servers, result.Items...)
 	}
 
-	// TODO: Parallelise.
-	var err error
+	asyncLock := &sync.Mutex{}
+	deletionComplete := &sync.WaitGroup{}
+	deletionComplete.Add(len(servers))
+
+	failed := false
 	for _, server := range servers {
-		if server.Started {
-			err = hardStopServer(apiClient, server.ID)
-			if err != nil {
-				return err
+		go func(server compute.Server) {
+			defer deletionComplete.Done()
+
+			var err error
+			if server.Started {
+				err = hardStopServer(apiClient, server.ID)
+				if err != nil {
+					log.Println(err)
+					failed = true
+
+					return
+				}
 			}
-		}
 
-		log.Printf("Deleting server '%s' ('%s')...",
-			server.Name,
-			server.ID,
-		)
+			asyncLock.Lock()
+			log.Printf("Destroying server '%s' ('%s')...",
+				server.Name,
+				server.ID,
+			)
 
-		err = apiClient.DeleteServer(server.ID)
-		if err != nil {
-			return err
-		}
+			err = apiClient.DeleteServer(server.ID)
+			asyncLock.Unlock()
+			if err != nil {
+				log.Println(err)
+				failed = true
 
-		err = apiClient.WaitForDelete(compute.ResourceTypeServer, server.ID, 5*time.Minute)
-		if err != nil {
-			return err
-		}
+				return
+			}
 
-		log.Printf("Deleted server '%s' ('%s').",
-			server.Name,
-			server.ID,
-		)
+			err = apiClient.WaitForDelete(compute.ResourceTypeServer, server.ID, 5*time.Minute)
+			if err != nil {
+				log.Println(err)
+				failed = true
+
+				return
+			}
+
+			log.Printf("Destroyed server '%s' ('%s').",
+				server.Name,
+				server.ID,
+			)
+
+		}(server)
+	}
+
+	deletionComplete.Wait()
+	if failed {
+		return fmt.Errorf("Destroy failed for one or more servers in network domain '%s'.", networkDomainID)
 	}
 
 	return nil
@@ -169,6 +202,19 @@ func hardStopServer(apiClient *compute.Client, serverID string) error {
 	}
 
 	log.Printf("Stopped server '%s'...", serverID)
+
+	return nil
+}
+
+func nukeNetworkDomain(apiClient *compute.Client, networkDomainID string) error {
+	log.Printf("Deleting network domain '%s'...", networkDomainID)
+
+	err := apiClient.DeleteNetworkDomain(networkDomainID)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Deleted network domain '%s'.", networkDomainID)
 
 	return nil
 }
