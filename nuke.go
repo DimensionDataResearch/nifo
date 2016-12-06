@@ -58,6 +58,8 @@ func nukeNATRules(apiClient *compute.Client, networkDomainID string) error {
 		}
 
 		natRules = append(natRules, result.Rules...)
+
+		page.Next()
 	}
 
 	for _, natRule := range natRules {
@@ -97,6 +99,8 @@ func nukePublicIPBlocks(apiClient *compute.Client, networkDomainID string) error
 		}
 
 		publicIPBlocks = append(publicIPBlocks, result.Blocks...)
+
+		page.Next()
 	}
 
 	for _, publicIPBlock := range publicIPBlocks {
@@ -132,6 +136,8 @@ func nukeServers(apiClient *compute.Client, networkDomainID string) error {
 		}
 
 		servers = append(servers, result.Items...)
+
+		page.Next()
 	}
 
 	asyncLock := &sync.Mutex{}
@@ -226,6 +232,8 @@ func nukeVLANs(apiClient *compute.Client, networkDomainID string) error {
 		}
 
 		vlans = append(vlans, result.VLANs...)
+
+		page.Next()
 	}
 
 	for _, vlan := range vlans {
