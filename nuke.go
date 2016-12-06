@@ -30,6 +30,11 @@ func nuke(apiClient *compute.Client, networkDomainID string) error {
 
 	// TODO: Nuke VIP nodes, VIP pools, and virtual listeners.
 
+	err = nukeVLANs(apiClient, networkDomainID)
+	if err != nil {
+		return err
+	}
+
 	err = nukeNetworkDomain(apiClient, networkDomainID)
 	if err != nil {
 		return err
@@ -202,6 +207,46 @@ func hardStopServer(apiClient *compute.Client, serverID string) error {
 	}
 
 	log.Printf("Stopped server '%s'...", serverID)
+
+	return nil
+}
+
+func nukeVLANs(apiClient *compute.Client, networkDomainID string) error {
+	var vlans []compute.VLAN
+
+	page := compute.DefaultPaging()
+	page.PageSize = 20
+	for {
+		result, err := apiClient.ListVLANs(networkDomainID, page)
+		if err != nil {
+			return err
+		}
+		if result.IsEmpty() {
+			break
+		}
+
+		vlans = append(vlans, result.VLANs...)
+	}
+
+	for _, vlan := range vlans {
+		log.Printf("Deleting VLAN '%s'...",
+			vlan.ID,
+		)
+
+		err := apiClient.DeleteVLAN(vlan.ID)
+		if err != nil {
+			return err
+		}
+
+		err = apiClient.WaitForDelete(compute.ResourceTypeVLAN, vlan.ID, 5*time.Minute)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Deleted VLAN '%s'...",
+			vlan.ID,
+		)
+	}
 
 	return nil
 }
