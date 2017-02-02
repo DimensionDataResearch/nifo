@@ -1,4 +1,4 @@
-VERSION = 0.1
+VERSION = 0.2
 VERSION_INFO_FILE = version-info.go
 
 BIN_DIRECTORY   = _bin

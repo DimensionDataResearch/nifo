@@ -48,10 +48,6 @@ func (options programOptions) Validate() error {
 		return fmt.Errorf("Must specify the target network domain.")
 	}
 
-	if options.Force {
-		return fmt.Errorf("Sorry, force flag is not supported yet.")
-	}
-
 	return nil
 }
 
